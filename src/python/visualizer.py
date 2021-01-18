@@ -22,37 +22,37 @@ hop_length = 2205
 prefix = '' #or s3:/mmacellaiomusic/
 media_name = f'{prefix}raw_music/anastasia.mp3'
 filename = media_name.split('/')[-1].split('.')[0]
-print('loading')
+print('Loading audio')
 channels = {}
 
 #generate separated files with demucs, move to their own folders
 # if not(os.path.isdir(f"demucs/separated/demucs/{filename}")):
 #     os.system(f'cd ../../ python -m demucs.separate -d cpu --dl {media_name}')
 
-if not(os.path.isdir(f"../../lib/demucs/separated/demucs/{filename}/vocals")):
-    for file in os.listdir(f'../../lib/demucs/separated/demucs/{filename}'):
-        os.mkdir(f"../../lib/demucs/separated/demucs/{filename}/{file.split('.')[0]}")
-        os.system(f"mv ../../lib/demucs/separated/demucs/{filename}/{file} ../../lib/demucs/separated/demucs/{filename}/{file.split('.')[0]}")
+if not(os.path.isdir(f"demucs/separated/demucs/{filename}/vocals")):
+    for file in os.listdir(f'demucs/separated/demucs/{filename}'):
+        os.mkdir(f"demucs/separated/demucs/{filename}/{file.split('.')[0]}")
+        os.system(f"mv demucs/separated/demucs/{filename}/{file} demucs/separated/demucs/{filename}/{file.split('.')[0]}")
 
 #load
 for i, source in enumerate(['vocals','drums','other','bass']):
-    print(source)
+#     print(source)
     channels['filename'] = filename.split('.')[0]
     channels[source] = {}
 #     channels[source]['combined'] = {}
     channels[source][0] = {}
     channels[source][1] = {}
-    if 'left.wav' not in os.listdir(f"../../lib/demucs/separated/demucs/{filename}/{source}"):
+    if 'left.wav' not in os.listdir(f"demucs/separated/demucs/{filename}/{source}"):
 #     split to left/right (how to automate if there is no stereo?)
-        os.system(f"ffmpeg -i ../../lib/demucs/separated/demucs/{filename}/{source}/{source}.wav -map_channel 0.0.0 ../../lib/demucs/separated/demucs/{filename}/{source}/left.wav -map_channel 0.0.1 ../../lib/demucs/separated/demucs/{filename}/{source}/right.wav")
+        os.system(f"ffmpeg -i demucs/separated/demucs/{filename}/{source}/{source}.wav -map_channel 0.0.0 demucs/separated/demucs/{filename}/{source}/left.wav -map_channel 0.0.1 demucs/separated/demucs/{filename}/{source}/right.wav")
 
 #     channels[source]['combined']['audio'], sr = librosa.load(f"demucs/separated/demucs/{filename}/{source}/{source}.wav", sr=None)
-    channels[source][0]['audio'], sr = librosa.load(f"../../lib/demucs/separated/demucs/{filename}/{source}/left.wav", sr=None)
-    channels[source][1]['audio'], sr = librosa.load(f"../../lib/demucs/separated/demucs/{filename}/{source}/right.wav", sr=None)
+    channels[source][0]['audio'], sr = librosa.load(f"demucs/separated/demucs/{filename}/{source}/left.wav", sr=None)
+    channels[source][1]['audio'], sr = librosa.load(f"demucs/separated/demucs/{filename}/{source}/right.wav", sr=None)
 #     channels[source]['stft'] = librosa.stft(channels[source]['audio'])
 
 # generate pitch and amplitude
-print('pitch and amplitude')
+print('Analysis')
 for source in channels.keys():
     if source != 'filename':
         for channel in [0,1]:
@@ -80,9 +80,8 @@ def plotimages(s, dataDict, colorList, sampBlend = 2):
     #background color = mean of bass pitches across blended samples
 #     modulated by relative amplitude to maximum bass amplitude
 #or normalize to channel[source][channel]['centroid']?
-    bgcolor = [c*0.5*(np.mean(abs(dataDict['bass'][channel]['amp'][samples_blend]))/
-                      abs(max(dataDict['bass'][channel]['amp']))) for c in 
-               colorList[np.argmax([np.mean(dataDict['bass'][0]['pitch'][v,samples_blend]) 
+    basscolor = sns.color_palette('husl', 12)
+    bgcolor = [c*0.2 for c in basscolor[np.argmax([np.mean(dataDict['bass'][0]['pitch'][v,samples_blend]) 
                                     for v in range(dataDict['bass'][0]['pitch'].shape[0])])]] 
 
     fig, ax = plt.subplots(1,1)
@@ -96,7 +95,7 @@ def plotimages(s, dataDict, colorList, sampBlend = 2):
         plt.plot(1+channel,1.5, 'o',
                  markerfacecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
                  markeredgecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
-                 markersize = np.mean(dataDict['drums'][channel]['amp'][samples_blend])*100)
+                 markersize = np.mean(dataDict['drums'][channel]['amp'][samples_blend])*250)
 
         #grab pitches in reverse order of strength, only using top few
         pitches_blended = np.mean(dataDict['vocals'][channel]['pitch'][:, samples_blend], axis = 1)
@@ -107,7 +106,7 @@ def plotimages(s, dataDict, colorList, sampBlend = 2):
                      'o',
                      markerfacecolor = colorList[pitch_inds[pitch_rank]], 
                      markeredgecolor = colorList[pitch_inds[pitch_rank]],
-                     markersize = 250*np.mean(dataDict['vocals'][channel]['amp'][samples_blend])*
+                     markersize = 400*np.mean(dataDict['vocals'][channel]['amp'][samples_blend])*
                      sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
 
         pitches_blended = np.mean(dataDict['other'][channel]['pitch'][:, samples_blend], axis = 1)
@@ -118,7 +117,7 @@ def plotimages(s, dataDict, colorList, sampBlend = 2):
                      'o',
                      markerfacecolor = colorList[pitch_inds[pitch_rank]], 
                      markeredgecolor = colorList[pitch_inds[pitch_rank]],
-                     markersize = 250*np.mean(dataDict['other'][channel]['amp'][samples_blend])*
+                     markersize = 400*np.mean(dataDict['other'][channel]['amp'][samples_blend])*
                      sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
 
     plt.ylim(0,3)
