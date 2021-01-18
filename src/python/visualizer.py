@@ -57,7 +57,6 @@ for source in channels.keys():
     if source != 'filename':
         for channel in [0,1]:
             if source != 'drums':
-                #pitch is defaulting to F across the board on Rome. is that the case for OW too?
                 chromagram = librosa.feature.chroma_stft(channels[source][channel]['audio'], sr=sr, hop_length=hop_length)
                 channels[source][channel]['pitch'] = chromagram
             else:
@@ -66,12 +65,7 @@ for source in channels.keys():
             channels[source][channel]['amp'] = np.array([np.mean(abs(channels[source][channel]['audio'][(s*hop_length):(s*hop_length+hop_length)])) 
                                             for s in range(int(np.floor(len(channels[source][channel]['audio'])/hop_length))-1)])
         
-        
-from matplotlib.animation import FuncAnimation
-import matplotlib.animation as animation
-
-
-def plotimages(s, dataDict, colorList):
+def plotimages(s, dataDict, colorList, sampBlend = 2):
     # take maximum-amplitude pitch for the sample, normalize sample ampl by maximum ampl (or by "other"?)
     # for now, use pitch from channel with larger amp. 
     # how to handle two-channel bass better? revert back to circles?
@@ -79,14 +73,22 @@ def plotimages(s, dataDict, colorList):
     import matplotlib.patches as mpatches
 
     channel = np.argmax([abs(dataDict['bass'][0]['amp'][s]),abs(dataDict['bass'][1]['amp'][s])])
-    bgcolor = [c*0.5*(abs(dataDict['bass'][channel]['amp'][s])/
+    
+    #blend across multiple windowed samples to reduce jitter and flashing
+    samples_blend = list(range(max([s-sampBlend, 0]),min([s+sampBlend+1, len(dataDict['bass'][0]['amp'])])))
+    
+    #background color = mean of bass pitches across blended samples
+#     modulated by relative amplitude to maximum bass amplitude
+#or normalize to channel[source][channel]['centroid']?
+    bgcolor = [c*0.5*(np.mean(abs(dataDict['bass'][channel]['amp'][samples_blend]))/
                       abs(max(dataDict['bass'][channel]['amp']))) for c in 
-               colorList[np.argmax(dataDict['bass'][channel]['pitch'][:,s])]] 
+               colorList[np.argmax([np.mean(dataDict['bass'][0]['pitch'][v,samples_blend]) 
+                                    for v in range(dataDict['bass'][0]['pitch'].shape[0])])]] 
 
     fig, ax = plt.subplots(1,1)
                                    
     # add a rectangle
-    rect = mpatches.Rectangle([0,0], 5, 5, ec="none", facecolor = bgcolor)
+    rect = mpatches.Rectangle([0,0], 3, 3, edgecolor="none", facecolor = bgcolor)
     ax.add_patch(rect)
     
     for channel in [0,1]:
@@ -94,29 +96,34 @@ def plotimages(s, dataDict, colorList):
         plt.plot(1+channel,1.5, 'o',
                  markerfacecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
                  markeredgecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
-                 markersize = dataDict['drums'][channel]['amp'][s]*100)
+                 markersize = np.mean(dataDict['drums'][channel]['amp'][samples_blend])*100)
 
         #grab pitches in reverse order of strength, only using top few
-        topchr = np.argsort(dataDict['vocals'][channel]['pitch'][:,s])
-        for pitch_rank in range(-1, 1):
-            plt.plot(.5+channel*2,0.75, 'o',
-                     markerfacecolor = colorList[topchr[pitch_rank]], 
-                     markeredgecolor = colorList[topchr[pitch_rank]],
-                     markersize = 250*dataDict['vocals'][channel]['amp'][s]*
-                     sum(dataDict['vocals'][channel]['pitch'][topchr[range(pitch_rank,1)],s]))
+        pitches_blended = np.mean(dataDict['vocals'][channel]['pitch'][:, samples_blend], axis = 1)
+        pitch_inds = np.argsort(pitches_blended)
+        for pitch_rank in range(-2, 0):
+            plt.plot(.5+channel*2, #to handle l/r
+                     0.75, #height
+                     'o',
+                     markerfacecolor = colorList[pitch_inds[pitch_rank]], 
+                     markeredgecolor = colorList[pitch_inds[pitch_rank]],
+                     markersize = 250*np.mean(dataDict['vocals'][channel]['amp'][samples_blend])*
+                     sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
 
-        topchr = np.argsort(dataDict['other'][channel]['pitch'][:,s])
-        for pitch_rank in range(-1, 1):
-            plt.plot(0.5+channel*2,2.25, 'o',
-                     markerfacecolor = colorList[topchr[pitch_rank]], 
-                     markeredgecolor = colorList[topchr[pitch_rank]],
-                     markersize = 250*dataDict['other'][channel]['amp'][s]*sum(dataDict['other'][channel]['pitch'][topchr[range(pitch_rank,1)],s]))
-    plt.xlim(0,3)
+        pitches_blended = np.mean(dataDict['other'][channel]['pitch'][:, samples_blend], axis = 1)
+        pitch_inds = np.argsort(pitches_blended)
+        for pitch_rank in range(-2, 0):
+            plt.plot(.5+channel*2, #to handle l/r
+                     2.25, #height
+                     'o',
+                     markerfacecolor = colorList[pitch_inds[pitch_rank]], 
+                     markeredgecolor = colorList[pitch_inds[pitch_rank]],
+                     markersize = 250*np.mean(dataDict['other'][channel]['amp'][samples_blend])*
+                     sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
+
     plt.ylim(0,3)
     plt.axis('off')
-   
-    if s==0:
-        plt.savefig(f"{dataDict['filename']}_frames/0000.jpg", facecolor=ax.get_facecolor(), edgecolor='none')
+    
     # redraw the canvas
     fig.canvas.draw()
 
@@ -124,10 +131,13 @@ def plotimages(s, dataDict, colorList):
     img = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8,
             sep='')
     img  = img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+
 #     # img is rgb, convert to opencv's default bgr
     img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
     plt.close(fig)
     return img
+
+
 
 digits = len(str(len(channels['vocals'][0]['amp'])))
 
@@ -144,7 +154,7 @@ if f"{filename}.avi" in os.listdir():
 fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 os.system(f"rm -f {filename}.avi")
 
-imagecv2 = plotimages(0, channels, colorList)
+imagecv2 = plotimages(0, channels, colorList, sampBlend = 3)
 print(imagecv2.shape)
 #image = cv2.imread(f'{filename}_frames/0000.jpg')
 #height,width, layer = image.shape
