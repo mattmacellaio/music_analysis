@@ -17,17 +17,20 @@ plt.rcParams['figure.figsize'] = [16, 12]
 colorList = sns.color_palette('hsv', 12)
 colorList+=[(1,1,1)]
 #balance between low number for precision, high number for stability of pitch/amp calc
-hop_length = 2205
+hop_length = 512
 #load all files, 
 prefix = '' #or s3:/mmacellaiomusic/
-media_name = f'{prefix}raw_music/anastasia.mp3'
+media_name = f'{prefix}raw_music/mfdoom_thatsthat.mp3'
+splitStereo = {'drums':False, 'vocals':False, 'other': True}
+sampBlend = {'drums':1, 'vocals':4, 'other': 2, 'bass':4}
 filename = media_name.split('/')[-1].split('.')[0]
-print('Loading audio')
 channels = {}
 
-#generate separated files with demucs, move to their own folders
+
+# generate separated files with demucs, move to their own folders
 # if not(os.path.isdir(f"demucs/separated/demucs/{filename}")):
-#     os.system(f'cd ../../ python -m demucs.separate -d cpu --dl {media_name}')
+#     print('Separating sources')
+#     os.system(f'python -m demucs.separate -d cpu --dl raw_music/{media_name}')
 
 if not(os.path.isdir(f"demucs/separated/demucs/{filename}/vocals")):
     for file in os.listdir(f'demucs/separated/demucs/{filename}'):
@@ -35,6 +38,8 @@ if not(os.path.isdir(f"demucs/separated/demucs/{filename}/vocals")):
         os.system(f"mv demucs/separated/demucs/{filename}/{file} demucs/separated/demucs/{filename}/{file.split('.')[0]}")
 
 #load
+print('Loading, splitting stereo audio')
+
 for i, source in enumerate(['vocals','drums','other','bass']):
 #     print(source)
     channels['filename'] = filename.split('.')[0]
@@ -65,7 +70,7 @@ for source in channels.keys():
             channels[source][channel]['amp'] = np.array([np.mean(abs(channels[source][channel]['audio'][(s*hop_length):(s*hop_length+hop_length)])) 
                                             for s in range(int(np.floor(len(channels[source][channel]['audio'])/hop_length))-1)])
         
-def plotimages(s, dataDict, colorList, sampBlend = 2):
+def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2):
     # take maximum-amplitude pitch for the sample, normalize sample ampl by maximum ampl (or by "other"?)
     # for now, use pitch from channel with larger amp. 
     # how to handle two-channel bass better? revert back to circles?
@@ -75,13 +80,13 @@ def plotimages(s, dataDict, colorList, sampBlend = 2):
     channel = np.argmax([abs(dataDict['bass'][0]['amp'][s]),abs(dataDict['bass'][1]['amp'][s])])
     
     #blend across multiple windowed samples to reduce jitter and flashing
-    samples_blend = list(range(max([s-sampBlend, 0]),min([s+sampBlend+1, len(dataDict['bass'][0]['amp'])])))
+    samples_blend = list(range(max([s-sampBlend['bass'], 0]),min([s+sampBlend['bass']+1, len(dataDict['bass'][0]['amp'])])))
     
     #background color = mean of bass pitches across blended samples
 #     modulated by relative amplitude to maximum bass amplitude
 #or normalize to channel[source][channel]['centroid']?
     basscolor = sns.color_palette('husl', 12)
-    bgcolor = [c*0.2 for c in basscolor[np.argmax([np.mean(dataDict['bass'][0]['pitch'][v,samples_blend]) 
+    bgcolor = [c*0.4 for c in basscolor[np.argmax([np.mean(dataDict['bass'][0]['pitch'][v,samples_blend]) 
                                     for v in range(dataDict['bass'][0]['pitch'].shape[0])])]] 
 
     fig, ax = plt.subplots(1,1)
@@ -90,34 +95,75 @@ def plotimages(s, dataDict, colorList, sampBlend = 2):
     rect = mpatches.Rectangle([0,0], 3, 3, edgecolor="none", facecolor = bgcolor)
     ax.add_patch(rect)
     
-    for channel in [0,1]:
-        #drums
-        plt.plot(1+channel,1.5, 'o',
-                 markerfacecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
-                 markeredgecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
-                 markersize = np.mean(dataDict['drums'][channel]['amp'][samples_blend])*250)
+    if splitStereo['drums']:
+        samples_blend = list(range(max([s-sampBlend['drums'], 0]),min([s+sampBlend['drums']+1, len(dataDict['drums'][0]['amp'])])))
 
-        #grab pitches in reverse order of strength, only using top few
-        pitches_blended = np.mean(dataDict['vocals'][channel]['pitch'][:, samples_blend], axis = 1)
+        for channel in [0,1]:
+            #drums
+            plt.plot(1+channel,1.5, 'o',
+                     markerfacecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
+                     markeredgecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
+                     markersize = np.mean(dataDict['drums'][channel]['amp'][samples_blend])*250)
+    else:
+        samples_blend = list(range(max([s-sampBlend['drums'], 0]),min([s+sampBlend['drums']+1, len(dataDict['drums'][0]['amp'])])))
+        plt.plot(1.5,1.5, 'o',
+                     markerfacecolor = colorList[dataDict['drums'][0]['pitch'][s]], 
+                     markeredgecolor = colorList[dataDict['drums'][0]['pitch'][s]], 
+                     markersize = np.mean(dataDict['drums'][0]['amp'][samples_blend_drums])*250)
+
+    #
+    if splitStereo['vocals']:
+        samples_blend = list(range(max([s-sampBlend['vocals'], 0]),min([s+sampBlend['vocals']+1, len(dataDict['vocals'][0]['amp'])])))
+
+        for channel in [0,1]:
+    #grab pitches in reverse order of strength, only using top few
+            pitches_blended = np.mean(dataDict['vocals'][channel]['pitch'][:, samples_blend], axis = 1)
+            pitch_inds = np.argsort(pitches_blended)
+            for pitch_rank in range(-pitchShow, 0):
+                plt.plot(.5+channel*2, #to handle l/r
+                         0.75, #height
+                         'o',
+                         markerfacecolor = colorList[pitch_inds[pitch_rank]], 
+                         markeredgecolor = colorList[pitch_inds[pitch_rank]],
+                         markersize = 400*np.mean(dataDict['vocals'][channel]['amp'][samples_blend])*
+                         sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
+    else:
+        pitches_blended = np.mean(dataDict['vocals'][0]['pitch'][:, samples_blend], axis = 1)
         pitch_inds = np.argsort(pitches_blended)
-        for pitch_rank in range(-2, 0):
-            plt.plot(.5+channel*2, #to handle l/r
+        for pitch_rank in range(-pitchShow, 0):
+            plt.plot(1.5, #to handle l/r
                      0.75, #height
                      'o',
                      markerfacecolor = colorList[pitch_inds[pitch_rank]], 
                      markeredgecolor = colorList[pitch_inds[pitch_rank]],
-                     markersize = 400*np.mean(dataDict['vocals'][channel]['amp'][samples_blend])*
+                     markersize = 400*np.mean(dataDict['vocals'][0]['amp'][samples_blend])*
                      sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
 
-        pitches_blended = np.mean(dataDict['other'][channel]['pitch'][:, samples_blend], axis = 1)
+    if splitStereo['other']:
+        samples_blend = list(range(max([s-sampBlend['other'], 0]),min([s+sampBlend['other']+1, len(dataDict['other'][0]['amp'])])))
+
+        for channel in [0,1]:
+    #grab pitches in reverse order of strength, only using top few
+            pitches_blended = np.mean(dataDict['other'][channel]['pitch'][:, samples_blend], axis = 1)
+            pitch_inds = np.argsort(pitches_blended)
+            for pitch_rank in range(-pitchShow, 0):
+                plt.plot(.5+channel*2, #to handle l/r
+                         2.25, #height
+                         'o',
+                         markerfacecolor = colorList[pitch_inds[pitch_rank]], 
+                         markeredgecolor = colorList[pitch_inds[pitch_rank]],
+                         markersize = 400*np.mean(dataDict['other'][channel]['amp'][samples_blend])*
+                         sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
+    else:
+        pitches_blended = np.mean(dataDict['other'][0]['pitch'][:, samples_blend], axis = 1)
         pitch_inds = np.argsort(pitches_blended)
-        for pitch_rank in range(-2, 0):
-            plt.plot(.5+channel*2, #to handle l/r
+        for pitch_rank in range(-pitchShow, 0):
+            plt.plot(1.5, #to handle l/r
                      2.25, #height
                      'o',
                      markerfacecolor = colorList[pitch_inds[pitch_rank]], 
                      markeredgecolor = colorList[pitch_inds[pitch_rank]],
-                     markersize = 400*np.mean(dataDict['other'][channel]['amp'][samples_blend])*
+                     markersize = 400*np.mean(dataDict['other'][0]['amp'][samples_blend])*
                      sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
 
     plt.ylim(0,3)
@@ -153,7 +199,10 @@ if f"{filename}.avi" in os.listdir():
 fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 os.system(f"rm -f {filename}.avi")
 
-imagecv2 = plotimages(0, channels, colorList, sampBlend = 3)
+
+imagecv2 = plotimages(0, channels, colorList,                        
+                      splitStereo = splitStereo, 
+                      sampBlend = sampBlend, pitchShow = 2)
 print(imagecv2.shape)
 #image = cv2.imread(f'{filename}_frames/0000.jpg')
 #height,width, layer = image.shape
@@ -165,7 +214,10 @@ video = cv2.VideoWriter(f"{filename}.avi",
                         size)
 
 for i in tqdm(range(len(channels['vocals'][0]['amp']))):
-    image = plotimages(i, dataDict = channels, colorList = colorList)
+    image = plotimages(i, dataDict = channels, 
+                       colorList = colorList, 
+                       splitStereo = splitStereo, 
+                       sampBlend = sampBlend, pitchShow = 3)
     video.write(image.astype('uint8'))
 
 
