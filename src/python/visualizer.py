@@ -20,9 +20,9 @@ colorList+=[(1,1,1)]
 hop_length = 512
 #load all files, 
 prefix = '' #or s3:/mmacellaiomusic/
-media_name = f'{prefix}raw_music/mfdoom_thatsthat.mp3'
-splitStereo = {'drums':False, 'vocals':False, 'other': True}
-sampBlend = {'drums':1, 'vocals':4, 'other': 3, 'bass':4}
+media_name = f'{prefix}raw_music/taylorswift_champagneproblems.mp3'
+splitStereo = {'drums':False, 'vocals':False, 'other': False}
+sampBlend = {'drums':2, 'vocals':10, 'other': 10, 'bass':4}
 filename = media_name.split('/')[-1].split('.')[0]
 channels = {}
 
@@ -85,8 +85,8 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
     #background color = mean of bass pitches across blended samples
 #     modulated by relative amplitude to maximum bass amplitude
 #or normalize to channel[source][channel]['centroid']?
-    basscolor = sns.color_palette('husl', 12)
-    bgcolor = [c*0.4 for c in basscolor[np.argmax([np.mean(dataDict['bass'][0]['pitch'][v,samples_blend]) 
+    basscolor = sns.color_palette('hsv', 12)
+    bgcolor = [c*0.4*np.mean(dataDict['bass'][0]['amp'][samples_blend])/max(dataDict['bass'][0]['amp']) for c in basscolor[np.argmax([np.mean(dataDict['bass'][0]['pitch'][v,samples_blend]) 
                                     for v in range(dataDict['bass'][0]['pitch'].shape[0])])]] 
 
     fig, ax = plt.subplots(1,1)
@@ -197,11 +197,7 @@ if f"{filename}.avi" in os.listdir():
 
 fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 os.system(f"rm -f {filename}.avi")
-image = plotimages(400, dataDict = channels, 
-                   colorList = colorList, 
-                   splitStereo = splitStereo, 
-                   sampBlend = sampBlend, pitchShow = 2)
-    
+
 size = (1300, 900)
 
 video = cv2.VideoWriter(f"{filename}.avi", 
@@ -216,8 +212,6 @@ for i in tqdm(range(len(channels['vocals'][0]['amp']))):
                        splitStereo = splitStereo, 
                        sampBlend = sampBlend, pitchShow = 2)
     crop_img = image[144:1056, 200:1400]
-    if i == 90:
-        cv2.imwrite('test.jpg', crop_img) 
         
     resized = cv2.resize(crop_img, dsize = size, interpolation = cv2.INTER_LINEAR)
     video.write(resized)
