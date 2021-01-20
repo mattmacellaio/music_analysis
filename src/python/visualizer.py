@@ -22,7 +22,7 @@ hop_length = 512
 prefix = '' #or s3:/mmacellaiomusic/
 media_name = f'{prefix}raw_music/mfdoom_thatsthat.mp3'
 splitStereo = {'drums':False, 'vocals':False, 'other': True}
-sampBlend = {'drums':1, 'vocals':4, 'other': 2, 'bass':4}
+sampBlend = {'drums':1, 'vocals':4, 'other': 3, 'bass':4}
 filename = media_name.split('/')[-1].split('.')[0]
 channels = {}
 
@@ -92,7 +92,7 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
     fig, ax = plt.subplots(1,1)
                                    
     # add a rectangle
-    rect = mpatches.Rectangle([0,0], 3, 3, edgecolor="none", facecolor = bgcolor)
+    rect = mpatches.Rectangle([-2,-2], 7, 7, edgecolor="none", facecolor = bgcolor)
     ax.add_patch(rect)
     
     if splitStereo['drums']:
@@ -109,7 +109,7 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
         plt.plot(1.5,1.5, 'o',
                      markerfacecolor = colorList[dataDict['drums'][0]['pitch'][s]], 
                      markeredgecolor = colorList[dataDict['drums'][0]['pitch'][s]], 
-                     markersize = np.mean(dataDict['drums'][0]['amp'][samples_blend_drums])*250)
+                     markersize = np.mean(dataDict['drums'][0]['amp'][samples_blend])*250)
 
     #
     if splitStereo['vocals']:
@@ -166,6 +166,7 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
                      markersize = 400*np.mean(dataDict['other'][0]['amp'][samples_blend])*
                      sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
 
+    plt.xlim(-1.167,  4.167)
     plt.ylim(0,3)
     plt.axis('off')
     
@@ -184,41 +185,42 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
 
 
 
+
 digits = len(str(len(channels['vocals'][0]['amp'])))
 
 startt = datetime.now()
-if f"{filename}_frames" not in os.listdir():
-    os.mkdir(f"{filename}_frames")
-
-start_frame = len(sorted(os.listdir(f'{filename}_frames/')))
-size = (1152,864)
+# if f"{filename}_frames" not in os.listdir():
+#     os.mkdir(f"{filename}_frames")
 
 if f"{filename}.avi" in os.listdir():
     os.remove(f"{filename}.avi")
 
 fourcc = cv2.VideoWriter_fourcc(*'MJPG')
 os.system(f"rm -f {filename}.avi")
-
-
-imagecv2 = plotimages(0, channels, colorList,                        
-                      splitStereo = splitStereo, 
-                      sampBlend = sampBlend, pitchShow = 2)
-print(imagecv2.shape)
-#image = cv2.imread(f'{filename}_frames/0000.jpg')
-#height,width, layer = image.shape
-size = (1600, 1200)
+image = plotimages(400, dataDict = channels, 
+                   colorList = colorList, 
+                   splitStereo = splitStereo, 
+                   sampBlend = sampBlend, pitchShow = 2)
+    
+size = (1300, 900)
 
 video = cv2.VideoWriter(f"{filename}.avi", 
                         fourcc, 
                         sr/hop_length, 
                         size)
 
+
 for i in tqdm(range(len(channels['vocals'][0]['amp']))):
     image = plotimages(i, dataDict = channels, 
                        colorList = colorList, 
                        splitStereo = splitStereo, 
-                       sampBlend = sampBlend, pitchShow = 3)
-    video.write(image.astype('uint8'))
+                       sampBlend = sampBlend, pitchShow = 2)
+    crop_img = image[144:1056, 200:1400]
+    if i == 90:
+        cv2.imwrite('test.jpg', crop_img) 
+        
+    resized = cv2.resize(crop_img, dsize = size, interpolation = cv2.INTER_LINEAR)
+    video.write(resized)
 
 
 video.release()
