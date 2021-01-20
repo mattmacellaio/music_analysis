@@ -17,12 +17,12 @@ plt.rcParams['figure.figsize'] = [16, 12]
 colorList = sns.color_palette('hsv', 12)
 colorList+=[(1,1,1)]
 #balance between low number for precision, high number for stability of pitch/amp calc
-hop_length = 512
+hop_length = 1024
 #load all files, 
 prefix = '' #or s3:/mmacellaiomusic/
 media_name = f'{prefix}raw_music/funkadelic_maggotbrain.mp3'
 splitStereo = {'drums':True, 'vocals':True, 'other': False}
-sampBlend = {'drums':2, 'vocals':15, 'other': 15, 'bass':6}
+sampBlend = {'drums':1, 'vocals':7, 'other': 7, 'bass':3}
 filename = media_name.split('/')[-1].split('.')[0]
 channels = {}
 
