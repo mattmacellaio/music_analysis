@@ -20,9 +20,9 @@ colorList+=[(1,1,1)]
 hop_length = 512
 #load all files, 
 prefix = '' #or s3:/mmacellaiomusic/
-media_name = f'{prefix}raw_music/taylorswift_champagneproblems.mp3'
-splitStereo = {'drums':False, 'vocals':False, 'other': False}
-sampBlend = {'drums':2, 'vocals':10, 'other': 10, 'bass':4}
+media_name = f'{prefix}raw_music/funkadelic_maggotbrain.mp3'
+splitStereo = {'drums':2, 'vocals':2, 'other': False}
+sampBlend = {'drums':2, 'vocals':15, 'other': 15, 'bass':6}
 filename = media_name.split('/')[-1].split('.')[0]
 channels = {}
 
