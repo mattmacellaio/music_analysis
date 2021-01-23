@@ -20,7 +20,7 @@ colorList+=[(1,1,1)]
 hop_length = 512
 #load all files, 
 prefix = '' #or s3:/mmacellaiomusic/
-media_name = f'{prefix}raw_music/mfdoom_coffinnails.mp3'
+media_name = f'{prefix}raw_music/arcticmonkeys_fluorescentadolescent.mp3'
 splitStereo = {'drums':False, 'vocals':False, 'other': True}
 sampBlend = {'drums':3, 'vocals':7, 'other': 7, 'bass':5}
 filename = media_name.split('/')[-1].split('.')[0]
@@ -86,7 +86,7 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
 #     modulated by relative amplitude to maximum bass amplitude
 #or normalize to channel[source][channel]['centroid']?
     basscolor = sns.color_palette('hsv', 12)
-    bgcolor = [c*0.4*np.mean(dataDict['bass'][0]['amp'][samples_blend])/max(dataDict['bass'][0]['amp']) for c in basscolor[np.argmax([np.mean(dataDict['bass'][0]['pitch'][v,samples_blend]) 
+    bgcolor = [c*0.3*np.mean(dataDict['bass'][0]['amp'][samples_blend])/max(dataDict['bass'][0]['amp']) for c in basscolor[np.argmax([np.mean(dataDict['bass'][0]['pitch'][v,samples_blend]) 
                                     for v in range(dataDict['bass'][0]['pitch'].shape[0])])]] 
 
     fig, ax = plt.subplots(1,1)
@@ -196,7 +196,6 @@ if f"{filename}.avi" in os.listdir():
     os.remove(f"{filename}.avi")
 
 fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-os.system(f"rm -f {filename}.avi")
 
 size = (1300, 900)
 
