@@ -20,7 +20,7 @@ colorList+=[(1,1,1)]
 hop_length = 512
 #load all files, 
 prefix = '' #or s3:/mmacellaiomusic/
-media_name = f'{prefix}raw_music/arcticmonkeys_fluorescentadolescent.mp3'
+media_name = f'{prefix}raw_music/catempire_oscarwilde.mp3'
 splitStereo = {'drums':False, 'vocals':False, 'other': True}
 sampBlend = {'drums':3, 'vocals':7, 'other': 7, 'bass':5}
 filename = media_name.split('/')[-1].split('.')[0]
@@ -101,13 +101,13 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
         for channel in [0,1]:
             #drums
             plt.plot(1+channel,2.25, 'o',
-                     markerfacecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
+                     markerfacecolor = 'none', 
                      markeredgecolor = colorList[dataDict['drums'][channel]['pitch'][s]], 
                      markersize = np.mean(dataDict['drums'][channel]['amp'][samples_blend])*250)
     else:
         samples_blend = list(range(max([s-sampBlend['drums'], 0]),min([s+sampBlend['drums']+1, len(dataDict['drums'][0]['amp'])])))
         plt.plot(1.5,2.25, 'o',
-                     markerfacecolor = colorList[dataDict['drums'][0]['pitch'][s]], 
+                     markerfacecolor = 'none', 
                      markeredgecolor = colorList[dataDict['drums'][0]['pitch'][s]], 
                      markersize = np.mean(dataDict['drums'][0]['amp'][samples_blend])*250)
 
@@ -123,7 +123,7 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
                 plt.plot(.5+channel*2, #to handle l/r
                          0.75, #height
                          'o',
-                         markerfacecolor = colorList[pitch_inds[pitch_rank]], 
+                         markerfacecolor = 'none', 
                          markeredgecolor = colorList[pitch_inds[pitch_rank]],
                          markersize = 400*np.mean(dataDict['vocals'][channel]['amp'][samples_blend])*
                          sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
@@ -134,7 +134,7 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
             plt.plot(1.5, #to handle l/r
                      0.75, #height
                      'o',
-                     markerfacecolor = colorList[pitch_inds[pitch_rank]], 
+                     markerfacecolor = 'none', 
                      markeredgecolor = colorList[pitch_inds[pitch_rank]],
                      markersize = 400*np.mean(dataDict['vocals'][0]['amp'][samples_blend])*
                      sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
@@ -150,7 +150,7 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
                 plt.plot(.5+channel*2, #to handle l/r
                          1.5, #height
                          'o',
-                         markerfacecolor = colorList[pitch_inds[pitch_rank]], 
+                         markerfacecolor = 'none', 
                          markeredgecolor = colorList[pitch_inds[pitch_rank]],
                          markersize = 500*np.mean(dataDict['other'][channel]['amp'][samples_blend])*
                          sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
@@ -161,7 +161,7 @@ def plotimages(s, dataDict, colorList, splitStereo, sampBlend = 2, pitchShow = 2
             plt.plot(1.5, #to handle l/r
                      1.5, #height
                      'o',
-                     markerfacecolor = colorList[pitch_inds[pitch_rank]], 
+                     markerfacecolor = 'none', 
                      markeredgecolor = colorList[pitch_inds[pitch_rank]],
                      markersize = 500*np.mean(dataDict['other'][0]['amp'][samples_blend])*
                      sum(pitches_blended[pitch_inds[range(pitch_rank, 0)]]))
@@ -205,7 +205,7 @@ video = cv2.VideoWriter(f"{filename}.avi",
                         size)
 
 
-for i in tqdm(range(len(channels['vocals'][0]['amp']))):
+for i in tqdm(range(2000)):#len(channels['vocals'][0]['amp']))):
     image = plotimages(i, dataDict = channels, 
                        colorList = colorList, 
                        splitStereo = splitStereo, 
