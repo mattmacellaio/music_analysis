@@ -19,6 +19,8 @@ class Visualizer:
         self.colorList += [(1, 1, 1)]
         # balance between low number for precision, high number for stability of pitch/amp calc
         self.hop_length = hop_length
+        self.n_fft = 4096
+        
         # load all files,
         self.media_name = media_name
         self.split_stereo = {'drums': False, 'vocals': False, 'other': False}
@@ -68,9 +70,8 @@ class Visualizer:
         for source in self.channels.keys():
             if source != 'filename':
                 for channel in [0, 1]:
-                    n_fft = 4096
                     #get frequencies
-                    freqs = librosa.fft_frequencies(self.sr, n_fft)
+                    freqs = librosa.fft_frequencies(self.sr, self.n_fft)
                     C = 261.626
                     #half-steps from middle C
                     hs = 12*np.log(freqs/ C) / np.log(2)
@@ -82,7 +83,10 @@ class Visualizer:
                     self.channels[source][channel]['pitch'] = [pitch[i]+octave[i] for i in range(len(pitch))]
 
                     #get amplitude for all freqs but first one, since first freq is undefinable above
-                    self.channels[source][channel]['amp'] = librosa.amplitude_to_db(np.abs(librosa.stft(self.channels[source][channel]['audio'], hop_length = self.hop_length, n_fft = n_fft)))[1:, :]
+                    self.channels[source][channel]['stft'] = librosa.stft(self.channels[source][channel]['audio'], 
+                                                                          hop_length = self.hop_length, 
+                                                                          n_fft = self.n_fft)
+                    self.channels[source][channel]['amp'] = librosa.amplitude_to_db(np.abs(self.channels[source][channel]['stft']))[1:, :]
 
     def plotimages(self, s):
         ## new plotting
@@ -96,22 +100,21 @@ class Visualizer:
         from io import BytesIO
         import colorsys
 
-        n_fft = 4096
         audio, sr = librosa.load(f"demucs/separated/demucs/anastasia/other/left.wav", sr=None)
 
-        stft= librosa.stft(audio, hop_length = 512, n_fft = n_fft)
 
-        freqs = librosa.fft_frequencies(sr, n_fft)
+        freqs = librosa.fft_frequencies(self.sr, self.n_fft)
+        #only plot freqs less than 4000Hz
         use_inds = [i for i,x in enumerate(freqs) if ((x<4000) & (x>0))]
-        freqs = freqs[use_inds]
-        C = 261.626
-        hs = 12*np.log(freqs/ C) / np.log(2)
+        pitch = librosa.hz_to_note(freqs[use_inds])
+#         C = 261.626
+#         hs = 12*np.log(freqs/ C) / np.log(2)
 
-        pitches = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
-        pitch = [pitches[np.mod(int(h), 12)]+str(int((np.log2(freqs[i]/C)+4))) for i, h in enumerate(np.round(hs))]
+#         pitches = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+#         pitch = [pitches[np.mod(int(h), 12)]+str(int((np.log2(freqs[i]/C)+4))) for i, h in enumerate(np.round(hs))]
 
         # use_pitches = [pitch[i] for i in use_inds]
-        stft_use = librosa.amplitude_to_db(np.abs(stft[use_inds,:]))
+        stft_use = librosa.amplitude_to_db(np.abs(self.channels[source][channel]['stft'][use_inds,:]))
 
         def disp(draw_func):
             surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 400, 400)
@@ -173,7 +176,7 @@ class Visualizer:
             x, y = 0.5, 0.5
             radius = .5
 
-            colormap = 'test'          
+            colormap = 'balanced'          
             for d in range(len(use_pitches)):
                 pitch_rgb = colors[colormap][np.random.choice(list(colors[colormap].keys()))]            
                 octave = int(use_pitches[d][-1])/10
